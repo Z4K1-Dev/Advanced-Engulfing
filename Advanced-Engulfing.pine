@@ -85,7 +85,7 @@ if showTable
         patternColor = lastPattern == "BEG" ? begColor : lastPattern == "EEG" ? eegColor : lastPattern == "BEF" ? befColor : lastPattern == "EEF" ? eefColor : color.gray
         table.cell(myTable, i, 1, lastPattern, bgcolor=patternColor, text_color=color.white, text_size=getTextSize(tableTextSize))
 
-// Fungsi untuk mendapatkan warna berdasarkan pola
+// Fungsi untuk mendapatkan warna berdasarkan pola Engulfing
 getColorForPattern(pattern, begColor, eegColor, befColor, eefColor) =>
     pattern == "BEG" ? begColor : pattern == "EEG" ? eegColor : pattern == "BEF" ? befColor : pattern == "EEF" ? eefColor : color.gray
 
