@@ -1,0 +1,167 @@
+//@version=6
+indicator("Bullish & Bearish Engulfing + Failure with Table", overlay=true)
+
+// Input untuk menampilkan tabel
+showTable = input.bool(true, title="Tampilkan Tabel")
+
+// --- DETEKSI POLA ENGULFING ---
+// Pola Bullish Engulfing
+bullishEngulfing = (close > open) and (close[1] < open[1]) and (close > high[1])
+// Pola Bearish Engulfing
+bearishEngulfing = (close < open) and (close[1] > open[1]) and (close < low[1])
+
+// --- MENYIMPAN DATA POLA TERAKHIR DAN DETEKSI KEGAGALAN ---
+// Variabel global untuk Bearish Engulfing
+var int lastBearishBar   = na    // Bar index dari pola bearish terakhir
+var float lastBearishHigh = na    // Nilai high dari pola bearish terakhir
+var int bearishFailureBar = na    // Bar index pertama yang menyebabkan kegagalan bearish
+
+// Variabel global untuk Bullish Engulfing
+var int lastBullishBar    = na    // Bar index dari pola bullish terakhir
+var float lastBullishLow  = na    // Nilai low dari pola bullish terakhir
+var int bullishFailureBar = na    // Bar index pertama yang menyebabkan kegagalan bullish
+
+// Update data pola Bearish Engulfing ketika terdeteksi
+if (bearishEngulfing)
+    lastBearishBar   := bar_index
+    lastBearishHigh  := high
+    bearishFailureBar := na    // Reset kegagalan saat pola baru muncul
+
+// Update data pola Bullish Engulfing ketika terdeteksi
+if (bullishEngulfing)
+    lastBullishBar    := bar_index
+    lastBullishLow    := low
+    bullishFailureBar := na    // Reset kegagalan saat pola baru muncul
+
+// Deteksi kegagalan untuk Bearish Engulfing:
+// Bar pertama setelah pola yang menutup di atas nilai high dari pola terakhir
+if (not na(lastBearishHigh)) and (na(bearishFailureBar)) and (bar_index > lastBearishBar) and (close > lastBearishHigh)
+    bearishFailureBar := bar_index
+
+// Deteksi kegagalan untuk Bullish Engulfing:
+// Bar pertama setelah pola yang menutup di bawah nilai low dari pola terakhir
+if (not na(lastBullishLow)) and (na(bullishFailureBar)) and (bar_index > lastBullishBar) and (close < lastBullishLow)
+    bullishFailureBar := bar_index
+
+// --- FUNGSI PENDUKUNG ---
+// Fungsi untuk menentukan pola terakhir yang terjadi pada bar saat ini
+getLastPattern() =>
+    var string lastPattern = na
+    if (bar_index == bearishFailureBar)
+        lastPattern := "EEF"    // Bearish Engulfing Failure
+    else if (bar_index == bullishFailureBar)
+        lastPattern := "BEF"    // Bullish Engulfing Failure
+    else if (bearishEngulfing)
+        lastPattern := "EEG"    // Bearish Engulfing
+    else if (bullishEngulfing)
+        lastPattern := "BEG"    // Bullish Engulfing
+    lastPattern
+
+// Fungsi konversi timeframe ke menit (jika diperlukan)
+convertTimeframe(tf) =>
+    if (tf == "M") or (tf == "W") or (tf == "D")
+        tf
+    else
+        len = str.length(tf)
+        last_char = str.substring(tf, len - 1, len)
+        if (last_char == "h")
+            num = str.tonumber(str.substring(tf, 0, len - 1))
+            str.tostring(num * 60)
+        else if (last_char == "m")
+            str.substring(tf, 0, len - 1)
+        else
+            tf
+
+// Fungsi untuk menentukan ukuran teks berdasarkan input (satu baris)
+getTextSize(textSize) => textSize == "tiny" ? size.tiny : textSize == "small" ? size.small : textSize == "normal" ? size.normal : size.large
+
+// --- PENGATURAN TABEL ---
+// Input ukuran teks untuk tabel dan label
+tableTextSize = input.string("small", title="Table Text Size", options=["tiny", "small", "normal", "large"], group="Pengaturan Tabel")
+labelTextSize = input.string("small", title="Label Text Size", options=["tiny", "small", "normal", "large"])
+
+// Input warna untuk masing-masing pola
+begColor = input.color(color.green, title="Bullish Engulfing Color")
+eegColor = input.color(color.red, title="Bearish Engulfing Color")
+befColor = input.color(color.red, title="Bullish Engulfing Failure Color")
+eefColor = input.color(color.green, title="Bearish Engulfing Failure Color")
+
+// Input daftar timeframe (pisahkan dengan koma)
+timeframesInput = input.string("M,W,D,4h,1h,30m,15m,5m,1m", title="Timeframes (pisahkan dengan koma)", group="Pengaturan Tabel")
+// Memisahkan string timeframes menjadi array
+tfArray = str.split(timeframesInput, ",")
+
+// Membuat tabel
+var table myTable = table.new(position.top_right, columns=array.size(tfArray), rows=2, bgcolor=color.new(color.black, 70), frame_color=color.gray)
+
+// Isi tabel apabila diaktifkan
+if (showTable)
+    // Baris pertama: Timeframe asli sesuai input
+    for i = 0 to array.size(tfArray) - 1
+        tf = str.trim(array.get(tfArray, i))
+        table.cell(myTable, i, 0, tf, bgcolor=color.new(color.black, 70), text_color=color.white, text_size=getTextSize(tableTextSize))
+    // Baris kedua: Status pola (menggunakan request.security)
+    for i = 0 to array.size(tfArray) - 1
+        tf_orig = str.trim(array.get(tfArray, i))
+        converted_tf = convertTimeframe(tf_orig)
+        lastPattern = request.security(syminfo.tickerid, converted_tf, getLastPattern())
+        patternColor = lastPattern == "BEG" ? begColor :
+                       lastPattern == "EEG" ? eegColor :
+                       lastPattern == "BEF" ? befColor :
+                       lastPattern == "EEF" ? eefColor : color.gray
+        // Hanya menampilkan "EG" untuk BEG/EEG dan "EF" untuk BEF/EEF di tabel
+        displayText = (lastPattern == "BEG" or lastPattern == "EEG") ? "EG" : ((lastPattern == "BEF" or lastPattern == "EEF") ? "EF" : lastPattern)
+        table.cell(myTable, i, 1, displayText, bgcolor=patternColor, text_color=color.white, text_size=getTextSize(tableTextSize))
+
+// --- PENANDA VISUAL DI CHART ---
+// Variabel global untuk menyimpan referensi label bullish dan bearish beserta bar index awal pembuatannya
+var label bullishLabel = na
+var int bullishLabelBar = na
+var label bearishLabel = na
+var int bearishLabelBar = na
+
+// Untuk sisi bullish:
+// Jika terjadi bullish failure, ambil koordinat x dan y dari label bullish sebelumnya (jika ada),
+// hapus label tersebut, dan gambar label bullish failure (BEF) pada bar index yang sama.
+// Jika label bullish tidak ada, gunakan bar_index dan low dari bar failure.
+if (bar_index == bullishFailureBar)
+    var float oldBullishY = na
+    if (not na(bullishLabel))
+        bullishLabelBar := label.get_x(bullishLabel)
+        oldBullishY := label.get_y(bullishLabel)
+        label.delete(bullishLabel)
+    else
+        bullishLabelBar := bar_index
+        oldBullishY := low
+    bullishLabel := label.new(bullishLabelBar, oldBullishY, text="EF\nShort", style=label.style_label_upper_right, color=color.new(befColor, 0), textcolor=color.white, size=getTextSize(labelTextSize))
+else if (bullishEngulfing) and (na(bullishFailureBar))
+    bullishLabel := label.new(bar_index, low, text="Long", style=label.style_label_upper_right, color=color.new(begColor, 0), textcolor=color.white, size=getTextSize(labelTextSize))
+    bullishLabelBar := bar_index
+
+// Untuk sisi bearish:
+// Jika terjadi bearish failure, ambil koordinat x dan y dari label bearish sebelumnya (jika ada),
+// hapus label tersebut, dan gambar label bearish failure (EEF) pada bar index yang sama.
+// Jika label bearish tidak ada, gunakan bar_index dan high dari bar failure.
+if (bar_index == bearishFailureBar)
+    var float oldBearishY = na
+    if (not na(bearishLabel))
+        bearishLabelBar := label.get_x(bearishLabel)
+        oldBearishY := label.get_y(bearishLabel)
+        label.delete(bearishLabel)
+    else
+        bearishLabelBar := bar_index
+        oldBearishY := high
+    bearishLabel := label.new(bearishLabelBar, oldBearishY, text="EF\nLong", style=label.style_label_lower_right, color=color.new(eefColor, 0), textcolor=color.white, size=getTextSize(labelTextSize))
+else if (bearishEngulfing) and (na(bearishFailureBar))
+    bearishLabel := label.new(bar_index, high, text="Short", style=label.style_label_lower_right, color=color.new(eegColor, 0), textcolor=color.white, size=getTextSize(labelTextSize))
+    bearishLabelBar := bar_index
+
+// --- LABEL BREAK ---
+// Tambahkan label "Break" pada bar yang menyebabkan break failure.
+// Untuk bullish failure, gunakan style label.style_label_down (misalnya, sebagai representasi segitiga ke bawah)
+// untuk menandakan break, dan letakkan di bar bullishFailureBar dengan high sebagai koordinat y.
+// Untuk bearish failure, gunakan style label.style_label_up untuk menandakan break, dan letakkan di bar bearishFailureBar dengan low sebagai koordinat y.
+if (bar_index == bullishFailureBar)
+    label.new(bullishFailureBar, high, text="Break", style=label.style_label_down, color=color.new(befColor, 0), textcolor=color.white, size=getTextSize(labelTextSize))
+if (bar_index == bearishFailureBar)
+    label.new(bearishFailureBar, low, text="Break", style=label.style_label_up, color=color.new(eefColor, 0), textcolor=color.white, size=getTextSize(labelTextSize))
