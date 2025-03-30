@@ -147,16 +147,16 @@ var int bearishLabelBar = na
 // hapus label tersebut, dan gambar label bullish failure (BEF) pada bar index yang sama.
 // Jika label bullish tidak ada, gunakan bar_index dan low dari bar failure.
 if (bar_index == bullishFailureBar)
-    bullishLabel := label.new(lastBullishLowBar, lastBullishLow, text=showEFLabels ? "EF\nBear" : "", style=label.style_label_upper_right, color=showEFLabels ? color.new(befColor, 0) : color.new(befColor, 100), textcolor=color.white, size=getTextSize(labelTextSize))
+    bullishLabel := label.new(lastBullishLowBar, lastBullishLow, text=showEFLabels ? "EF\nShort" : "", style=label.style_label_upper_right, color=showEFLabels ? color.new(befColor, 0) : color.new(befColor, 100), textcolor=color.white, size=getTextSize(labelTextSize))
 else if (bullishEngulfing) and (na(bullishFailureBar))
-    bullishLabel := label.new(lastBullishLowBar, lastBullishLow, text=showEGLabels ? "Bull" : "", style=label.style_label_upper_right, color=showEGLabels ? color.new(begColor, 0) : color.new(begColor, 100), textcolor=color.white, size=getTextSize(labelTextSize))
+    bullishLabel := label.new(lastBullishLowBar, lastBullishLow, text=showEGLabels ? "Long" : "", style=label.style_label_upper_right, color=showEGLabels ? color.new(begColor, 0) : color.new(begColor, 100), textcolor=color.white, size=getTextSize(labelTextSize))
     
 
 // Untuk sisi bearish:
 if (bar_index == bearishFailureBar)
-    bearishLabel := label.new(lastBearishHighBar, lastBearishHigh, text=showEFLabels ? "EF\nBull" : "", style=label.style_label_lower_right, color=showEFLabels ? color.new(eefColor, 0) : color.new(eefColor, 100), textcolor=color.white, size=getTextSize(labelTextSize))
+    bearishLabel := label.new(lastBearishHighBar, lastBearishHigh, text=showEFLabels ? "EF\nLong" : "", style=label.style_label_lower_right, color=showEFLabels ? color.new(eefColor, 0) : color.new(eefColor, 100), textcolor=color.white, size=getTextSize(labelTextSize))
 else if (bearishEngulfing) and (na(bearishFailureBar))
-    bearishLabel := label.new(lastBearishHighBar, lastBearishHigh, text=showEGLabels ? "Bear" : "", style=label.style_label_lower_right, color= showEGLabels ? color.new(eegColor, 0) : color.new(eegColor, 100), textcolor=color.white, size=getTextSize(labelTextSize))
+    bearishLabel := label.new(lastBearishHighBar, lastBearishHigh, text=showEGLabels ? "Short" : "", style=label.style_label_lower_right, color= showEGLabels ? color.new(eegColor, 0) : color.new(eegColor, 100), textcolor=color.white, size=getTextSize(labelTextSize))
 
 // --- LABEL BREAK ---
 // Tambahkan label "Break" pada bar yang menyebabkan break failure.
