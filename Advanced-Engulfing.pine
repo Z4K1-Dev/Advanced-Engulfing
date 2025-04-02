@@ -101,8 +101,8 @@ labelTextSize = input.string("small", title="Label Text Size", options=["tiny", 
 // Input warna untuk masing-masing pola
 begColor = input.color(color.green, title="Bullish Engulfing Color")
 eegColor = input.color(color.red, title="Bearish Engulfing Color")
-befColor = input.color(#B22833, title="Bullish Engulfing Failure Color")
-eefColor = input.color(#388E3C, title="Bearish Engulfing Failure Color")
+eefColor = input.color(#1B5E20, title="Bearish Engulfing Failure Color")
+befColor = input.color(#801922, title="Bullish Engulfing Failure Color")
 
 // Input daftar timeframe (pisahkan dengan koma)
 timeframesInput = input.string("M,W,D,4h,1h,30m,15m,5m,1m", title="Timeframes (pisahkan dengan koma)", group="Pengaturan Tabel")
@@ -167,3 +167,76 @@ if (bar_index == bullishFailureBar)
     label.new(bullishFailureBar - 1, high[1], text=showEFLabels ? "Break" : "", style=label.style_label_down, color=showEFLabels ? color.new(befColor, 0) : color.new(befColor, 100), textcolor=color.white, size=getTextSize(labelTextSize))
 if (bar_index == bearishFailureBar)
     label.new(bearishFailureBar - 1, low[1], text=showEFLabels ? "Break" : "", style=label.style_label_up, color=showEFLabels ? color.new(eefColor, 0) : color.new(eefColor, 100), textcolor=color.white, size=getTextSize(labelTextSize))
+
+// --- DOMINANT BREAK DETECTION ---
+maxLookback = input.int(6, title="Max Bars untuk Dominant Break", minval=2, maxval=10)
+
+// Fungsi untuk mengecek semua bar bullish
+allBullishBars(start, end) =>
+    allBullish = true
+    for i = start to end
+        if close[i] <= open[i]  // jika ada yang bearish
+            allBullish := false
+            break
+    allBullish
+
+// Deteksi Bullish Dominant Break
+isDominantBreakBull() =>
+    result = false
+    motherBar = 0
+    breakBar = 0
+    
+    // Cari bearish bar (mother bar) dan subsequent bullish breaks
+    for i = 1 to maxLookback
+        if close[i] < open[i]  // mother bar bearish
+            // Cek apakah semua bar setelah mother bar adalah bullish
+            if allBullishBars(1, i-1)
+                // Cek bar pertama yang close di atas high mother bar
+                for j = i-1 to 1
+                    if close[j] > high[i]
+                        result := true
+                        motherBar := i
+                        breakBar := j
+                        break
+                break  // Keluar setelah menemukan mother bar pertama
+            break
+    [result, motherBar, breakBar]
+
+// Deteksi Bearish Dominant Break
+isDominantBreakBear() =>
+    result = false
+    motherBar = 0
+    breakBar = 0
+    
+    // Cari bullish bar (mother bar) dan subsequent bearish breaks
+    for i = 1 to maxLookback
+        if close[i] > open[i]  // mother bar bullish
+            allBearish = true
+            // Cek apakah semua bar setelah mother bar adalah bearish
+            for j = 1 to i-1
+                if close[j] >= open[j]
+                    allBearish := false
+                    break
+            if allBearish
+                // Cek bar pertama yang close di bawah low mother bar
+                for j = i-1 to 1
+                    if close[j] < low[i]
+                        result := true
+                        motherBar := i
+                        breakBar := j
+                        break
+                break  // Keluar setelah menemukan mother bar pertama
+            break
+    [result, motherBar, breakBar]
+
+[bullBreak, bullMotherBar, bullBreakBar] = isDominantBreakBull()
+[bearBreak, bearMotherBar, bearBreakBar] = isDominantBreakBear()
+
+// Visualisasi
+if bullBreak
+    label.new(bar_index - bullMotherBar, low[bullMotherBar], "MB", style=label.style_label_up, color=color.new(color.green, 0), textcolor=color.white, size=size.small)
+    label.new(bar_index - bullBreakBar, high[bullBreakBar], "DB", style=label.style_label_up, color=color.new(color.green, 0), textcolor=color.white, size=size.small)
+
+if bearBreak
+    label.new(bar_index - bearMotherBar, high[bearMotherBar], "MB", style=label.style_label_down, color=color.new(color.red, 0), textcolor=color.white, size=size.small)
+    label.new(bar_index - bearBreakBar, low[bearBreakBar], "DB", style=label.style_label_down, color=color.new(color.red, 0), textcolor=color.white, size=size.small)
